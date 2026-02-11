@@ -2,159 +2,123 @@ import os
 import streamlit as st
 import google.generativeai as genai
 
-# ----------------------------
-# Page setup
-# ----------------------------
+# === PAGE SETUP ===
 st.set_page_config(page_title="Atoinfinity", layout="wide")
 st.title("🚀 Atoinfinity: Capability Intelligence")
 
-# ----------------------------
-# Secrets / env key (NO UI input)
-# ----------------------------
+# === GEMINI API SETUP ===
 api_key = os.getenv("Gemini_API")
 if not api_key:
-st.error(
-"Missing environment variable **Gemini_API**.\n\n"
-"- If using GitHub: add it as a Secret named `Gemini_API`\n"
-"- If deploying (Streamlit Cloud/Render/Azure): set `Gemini_API` as an environment variable"
-)
-st.stop()
+    st.error("""
+    **Missing Gemini_API environment variable**
+    
+    **GitHub Codespaces**: Add as Secret `Gemini_API`
+    **Streamlit Cloud/Render**: Set as Environment Variable
+    """)
+    st.stop()
 
-# Configure Gemini once
 try:
-genai.configure(api_key=api_key)
+    genai.configure(api_key=api_key)
 except Exception as e:
-st.error(f"Failed to configure Gemini API: {e}")
-st.stop()
+    st.error(f"❌ Gemini API config failed: {e}")
+    st.stop()
 
-# ----------------------------
-# Sidebar inputs
-# ----------------------------
+# === SIDEBAR INPUTS ===
 with st.sidebar:
-st.header("Setup")
+    st.header("🎯 Setup")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        role = st.text_input("Target Job Role", placeholder="Cloud Infrastructure Engineer")
+    with col2:
+        company = st.text_input("Target Company", placeholder="Google / Amazon")
+    
+    experience_level = st.selectbox(
+        "Experience Level", 
+        ["Entry", "Mid", "Senior", "Architect/Lead"],
+        index=2
+    )
+    
+    st.subheader("Output Style")
+    output_style = st.radio(
+        "Format", 
+        ["📝 Concise (bullets)", "📚 Detailed (examples)"],
+        horizontal=True
+    )
+    
+    col3, col4 = st.columns(2)
+    with col3:
+        model_name = st.selectbox("Model", ["gemini-2.0-flash-lite", "gemini-2.0-flash"])
+    with col4:
+        temperature = st.slider("Creativity", 0.0, 1.0, 0.6, 0.05)
 
-role = st.text_input("Target Job Role", placeholder="e.g., Cloud Infrastructure Engineer")
-company = st.text_input("Target Company (Optional)", placeholder="e.g., FBD Insurance / Google / Amazon")
-experience_level = st.selectbox(
-"Experience Level",
-["Entry Level", "Mid Level", "Senior Level", "Architect/Leadership"],
-index=2,
-)
+# === MAIN INPUT ===
+col_a, col_b = st.columns([3, 1])
+with col_a:
+    user_input = st.text_area(
+        "📋 Current Skills & Experience",
+        height=200,
+        placeholder="""• 5+ years infrastructure engineering
+• Terraform, Kubernetes, AWS/GCP
+• Led migration saving $200k/year
+• Built CI/CD pipelines (GitHub Actions)
+• On-call incident management..."""
+    )
+with col_b:
+    st.info("💡 **Tip**: Include tools, years, metrics, projects")
 
-output_style = st.selectbox(
-"Output Style",
-["Concise (bullet points)", "Detailed (with examples)"],
-index=0,
-)
+# === ACTION BUTTONS ===
+col_btn1, col_btn2 = st.columns([2, 1])
+with col_btn1:
+    generate = st.button("🚀 Generate Strategy", type="primary", use_container_width=True)
+with col_btn2:
+    st.caption("Include: tools, impact metrics, achievements")
 
-model_name = st.selectbox(
-"Model",
-["gemini-2.0-flash-lite", "gemini-2.0-flash"],
-index=0,
-help="Flash is usually higher quality but may be slower/costlier depending on your plan.",
-)
+# === PROMPT BUILDER ===
+@st.cache_data
+def build_prompt(role, company, experience_level, user_input, output_style):
+    detail_hint = "📏 Keep crisp, bullet-heavy" if "Concise" in output_style else "💡 Add examples"
+    company_line = f"Company: {company}" if company.strip() else "Company: Any"
+    
+    return f"""
+**Senior Career Strategist** - Target: {role} ({experience_level}) at {company_line}
 
-temperature = st.slider(
-"Creativity (temperature)",
-min_value=0.0,
-max_value=1.0,
-value=0.6 if "Concise" in output_style else 0.75,
-step=0.05,
-)
-
-# ----------------------------
-# Main input
-# ----------------------------
-user_input = st.text_area(
-"Current Skills & Experience",
-height=220,
-placeholder="Paste your skills, projects, tools, years of experience, achievements, and responsibilities…",
-)
-
-col1, col2 = st.columns([1, 1])
-
-with col1:
-generate = st.button("Generate Strategy", type="primary")
-
-with col2:
-st.caption("Tip: include tools, years, project impact (time saved, cost reduced), and incidents handled.")
-
-# ----------------------------
-# Prompt builder
-# ----------------------------
-def build_prompt(role: str, company: str, experience_level: str, user_input: str, output_style: str) -> str:
-detail_hint = (
-"Keep it crisp and bullet-heavy."
-if "Concise" in output_style
-else "Add brief examples and a bit more explanation where useful."
-)
-
-company_line = f"Target Company: {company}" if company.strip() else "Target Company: (not specified)"
-
-return f"""
-You are a senior career strategist and enterprise technology mentor.
-
-Target Role: {role}
-{company_line}
-Experience Level: {experience_level}
-
-Candidate Profile:
+**Candidate Profile:**
 {user_input}
 
-Deliverables (use markdown headings '##' and bullet points):
-1) Readiness score /100 with 3 reasons.
-2) Strengths (5 bullets).
-3) Skill gaps: Must-have vs Nice-to-have (role aligned).
-4) 30-60-90 day roadmap with weekly actions (realistic and measurable).
-5) 3 portfolio projects (each with outcomes + suggested tech stack + what to showcase).
-6) Certifications (only if genuinely useful; avoid unnecessary ones).
-7) Interview prep plan: system design + behavioral + role-specific questions.
-8) A 1-minute elevator pitch tailored to the role.
+**DELIVERABLES** (markdown ## headings + bullets):
+1. Readiness Score /100 + 3 reasons
+2. **Strengths** (top 5 bullets)  
+3. **Skill Gaps**: Must-have vs Nice-to-have
+4. **30-60-90 Day Roadmap** (weekly actions)
+5. **3 Portfolio Projects** (outcomes + tech stack)
+6. **Certifications** (only high-ROI ones)
+7. **Interview Prep**: System design + behavioral
+8. **1-Min Elevator Pitch**
 
-Guidance:
-- Avoid generic advice; be concrete and actionable.
-- Prefer outcomes, metrics, and artifacts (docs, diagrams, GitHub, runbooks).
-- {detail_hint}
-""".strip()
+**Style**: {detail_hint}
+**Focus**: Concrete metrics, GitHub repos, outcomes
+    """.strip()
 
-# ----------------------------
-# Generate
-# ----------------------------
+# === GENERATE STRATEGY ===
 if generate:
-if not role.strip() or not user_input.strip():
-st.warning("Please fill in **Target Job Role** and **Current Skills & Experience**.")
-st.stop()
-
-prompt = build_prompt(role, company, experience_level, user_input, output_style)
-
-try:
-model = genai.GenerativeModel(
-model_name=model_name,
-generation_config={
-"temperature": float(temperature),
-"top_p": 0.9,
-"max_output_tokens": 2048,
-},
-)
-
-with st.spinner("Analyzing..."):
-response = model.generate_content(prompt)
-
-text = getattr(response, "text", None)
-if not text:
-st.error("No text received from the model. Try again or switch model.")
-st.stop()
-
-st.success("Strategy generated!")
-st.markdown(text)
-
-# Optional: download as markdown
-st.download_button(
-label="Download as Markdown",
-data=text.encode("utf-8"),
-file_name="atoinfinity_strategy.md",
-mime="text/markdown",
-)
-
-except Exception as e:
-st.error(f"API Error: {str(e)}")
+    if not role.strip() or not user_input.strip():
+        st.warning("⚠️ Please add **Job Role** and **Your Skills**")
+        st.stop()
+    
+    with st.spinner("🤖 Generating your career strategy..."):
+        prompt = build_prompt(role, company, experience_level, user_input, output_style)
+        
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(prompt, generation_config={"temperature": temperature})
+        
+        st.markdown("## 🎯 **Your Career Strategy**")
+        st.markdown(response.text)
+        
+        # Download button
+        st.download_button(
+            "💾 Download Strategy",
+            response.text,
+            f"atoinfinity-strategy-{role.replace(' ', '-')}.md",
+            "text/markdown"
+        )
