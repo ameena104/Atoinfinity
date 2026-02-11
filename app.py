@@ -1,39 +1,29 @@
 import streamlit as st
 import google.generativeai as genai
 
-# UI Setup
-st.set_page_config(page_title="Career Agent", layout="wide")
-st.title("🚀 Capability Intelligence Platform")
+st.set_page_config(page_title="Atoinfinity", layout="wide")
+st.title("🚀 Atoinfinity: Capability Intelligence")
 
-# Sidebar for Setup
 with st.sidebar:
-    st.header("Settings")
-    api_key = st.text_input("Enter Gemini API Key:", type="password")
-    target_role = st.text_input("Target Job Title (e.g., Senior Data Scientist)")
-    target_company = st.text_input("Target Company (Optional)")
+    st.header("Setup")
+    api_key = st.text_input("Paste Gemini API Key:", type="password")
+    role = st.text_input("Target Job Role:")
+    company = st.text_input("Target Company:")
 
-# Main Input
-user_skills = st.text_area("List your current skills/experience:")
+user_input = st.text_area("Current Skills & Experience:")
 
-if st.button("Generate Roadmap"):
-    if not api_key:
-        st.error("Please enter your API Key in the sidebar.")
+if st.button("Generate Strategy"):
+    if not api_key or not user_input or not role:
+        st.warning("Please fill in the API Key, Target Role, and your Skills.")
     else:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = f"""
-        Act as a Career Architect. Analyze the gap between:
-        Current Skills: {user_skills}
-        Target Role: {target_role} at {target_company}
-        
-        Provide:
-        1. Skill Gap Analysis (Market Benchmarked)
-        2. 30-60-90 Day Adaptive Roadmap
-        3. Behavioral Confidence Tip
-        4. Specific Company Alignment Advice
-        """
-        
-        with st.spinner("Agent analyzing market data..."):
-            response = model.generate_content(prompt)
-            st.markdown(response.text)
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            full_prompt = f"Role: {role}\nCompany: {company}\nSkills: {user_input}\nAnalyze gaps and provide a 30-60-90 day roadmap."
+            
+            with st.spinner("Analyzing..."):
+                response = model.generate_content(full_prompt)
+                st.markdown(response.text)
+        except Exception as e:
+            st.error(f"API Error: {str(e)}")
