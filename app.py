@@ -18,7 +18,7 @@ if st.button("Generate Strategy"):
     else:
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            model = genai.GenerativeModel('gemini-2.0-flash-lite')
             
             full_prompt = f"Role: {role}\nCompany: {company}\nSkills: {user_input}\nAnalyze gaps and provide a 30-60-90 day roadmap."
             
